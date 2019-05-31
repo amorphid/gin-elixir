@@ -10,7 +10,7 @@ by adding `gin` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:gin, "~> 0.1.0"}
+    {:gin, "~> 0.2.0"}
   ]
 end
 ```
