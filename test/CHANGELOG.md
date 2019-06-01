@@ -18,3 +18,8 @@
   - support for timeout in init callback
   - support for continue in init callback
 - Deleted boilerplate doc tests
+
+## <next version>
+
+- Add to Gin.Server:
+  - support for using only module name as a valid child spec

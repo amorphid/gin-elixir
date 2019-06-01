@@ -58,7 +58,13 @@ defmodule Gin.Server do
           Kernel.defstruct(opts)
       end
 
-      def start_link(%{} = opts \\ %{}) do
+      def start_link(otps \\ %{})
+
+      def start_link([]) do
+        start_link()
+      end
+
+      def start_link(%{} = opts) do
         data = struct!(__MODULE__, opts)
         GenServer.start_link(__MODULE__, data, name: data.name)
       end

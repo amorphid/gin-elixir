@@ -95,6 +95,37 @@ defmodule Gin.ServerTest do
     end
   end
 
+  describe "defining a struct" do
+    test "enables use of only module name as supervisor child spec" do
+      name = random_name()
+      Code.eval_string("""
+      defmodule StartUsingOnlyModuleNameServer do
+        use Gin.Server
+
+        defstruct do
+          defkey(:name, default: #{inspect(name)}, type: Atom)
+        end
+      end
+      """)
+      child_specs = [
+        StartUsingOnlyModuleNameServer
+      ]
+      opts = [strategy: :one_for_one]
+      assert Process.whereis(name) |> is_nil()
+      {:ok, pid} = Supervisor.start_link(child_specs, opts)
+      child = Process.whereis(name)
+      expected_children = [
+        {
+          StartUsingOnlyModuleNameServer, 
+          child, 
+          :worker, 
+          [StartUsingOnlyModuleNameServer]
+        }
+      ]
+      assert Supervisor.which_children(pid) == expected_children
+    end
+  end
+
   describe "defining a struct w/o declaring a type for every key" do
     test "raises a compile time error" do
       pattern =  ~r/valid type\(s\) not defined for key/
