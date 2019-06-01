@@ -36,12 +36,113 @@ defmodule Gin.ServerTest do
     end
   end
 
+  defmodule TimesOutOnInitServer do
+    use Gin.Server
+
+    defstruct do
+      defkey(:init_timeout, default: 0, type: Integer)
+      defkey(:name, type: Atom)
+      defkey(:state, default: :off, type: Atom)
+    end
+
+    def handle_info(:timeout, %__MODULE__{state: :off} = data) do
+      {:noreply, struct!(data, state: :on)}
+    end
+  end
+
+  defmodule ContinuesOnInitServer do
+    use Gin.Server
+
+    defstruct do
+      defkey(:init_continue, default: :turn_on, type: Atom)
+      defkey(:name, type: Atom)
+      defkey(:state, default: :off, type: Atom)
+    end
+
+    def handle_continue(:turn_on, %__MODULE__{state: :off} = data) do
+      {:noreply, struct!(data, state: :on)}
+    end
+  end
+
   def random_name() do
     for _ <- 1..20 do
       Enum.random(?a..?z)
     end
     |> to_string()
     |> String.to_atom()
+  end
+
+  describe "defining a struct w/ multiple init actions" do
+    test "raises a compile time error" do
+      pattern =  ~r/struct may only contain one of the following keys/
+      func = fn -> 
+        Code.eval_string("""
+        defmodule MultipleInitActionsRaisesCompileTimeErrorServer do
+          use Gin.Server
+
+          defstruct do
+            defkey(:init_continue, default: :some_action, type: Atom)
+            defkey(:init_timeout, default: 0, type: Integer)
+          end
+
+          def handle_continue(:some_action, %__MODULE__{} = data), do: {:noreply, data}
+
+          def handle_info(:timeout, %__MODULE__{} = data), do: {:noreply, data}
+        end
+        """)
+      end
+      assert_raise Gin.CompileTimeError, pattern, func
+    end
+  end
+
+  describe "defining a struct w/o declaring a type for every key" do
+    test "raises a compile time error" do
+      pattern =  ~r/valid type\(s\) not defined for key/
+      func = fn -> 
+        Code.eval_string("""
+        defmodule NoTypeDeclarationRaisesCompileTimeErrorServer do
+          use Gin.Server
+
+          defstruct do
+            defkey(:my_key, [])
+          end
+        end
+        """)
+      end
+      assert_raise Gin.CompileTimeError, pattern, func
+    end
+  end
+
+  describe "defining a struct w/ non-integer type for key init_timeout" do
+    test "raises a compile time error" do
+      pattern =  ~r/for init_timeout, expected Integer type, got:/
+      func = fn -> 
+        Code.eval_string("""
+        defmodule NonIntegerTypeForInitTimeoutRaisesCompileTimeErrorServer do
+          use Gin.Server
+
+          defstruct do
+            defkey(:init_timeout, type: BitString)
+          end
+        end
+        """)
+      end
+      assert_raise Gin.CompileTimeError, pattern, func
+    end
+  end
+
+  describe "defining a struct with an init continue action" do
+    test "triggers the appropriate handle_continue callback on start" do
+      {:ok, pid} = ContinuesOnInitServer.start_link(%{name: random_name()})
+      assert :sys.get_state(pid).state == :on
+    end
+  end
+
+  describe "defining a struct with an init timeout of 0" do
+    test "triggers timeout callback on start" do
+      {:ok, pid} = TimesOutOnInitServer.start_link(%{name: random_name()})
+      assert :sys.get_state(pid).state == :on
+    end
   end
 
   describe "defining a struct w/ &defstruct/1" do
