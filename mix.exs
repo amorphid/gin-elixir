@@ -20,7 +20,7 @@ defmodule Gin.MixProject do
       elixir: "~> 1.8",
       package: package(),
       start_permanent: Mix.env() == :prod,
-      version: "0.3.0",
+      version: "0.4.0",
     ]
   end
 

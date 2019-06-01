@@ -19,7 +19,8 @@
   - support for continue in init callback
 - Deleted boilerplate doc tests
 
-## <next version>
+## v0.4.0
 
 - Add to Gin.Server:
   - support for using only module name as a valid child spec
+  - move CHANGELOG to correct directory
