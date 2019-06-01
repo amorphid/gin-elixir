@@ -31,6 +31,7 @@ defmodule Gin.Server do
       use GenServer
       import Kernel, except: [defstruct: 1]
       import unquote(__MODULE__)
+
       @__init_actions__ [
         :init_continue,
         :init_timeout
@@ -128,20 +129,41 @@ defmodule Gin.Server do
                 ","
             end,
             " do: {:ok, data",
-            (
-              cond do 
-                ((for action <- @__init_actions__, do: Enum.count(Keyword.get_values(@__struct_keys__, action))) |> Enum.sum()) > 1 -> 
-                  raise Gin.CompileTimeError, message: "struct may only contain one of the following keys: #{String.slice(inspect(@__init_actions__), 1..-2)}"                    
-                Keyword.has_key?(@__struct_keys__, :init_timeout) && is_integer(Keyword.fetch!(@__struct_keys__, :init_timeout)[:default]) ->
-                  ", data.init_timeout}"                  
-                Keyword.has_key?(@__struct_keys__, :init_timeout) && Keyword.fetch!(@__struct_keys__, :init_timeout)[:type] != Integer ->
-                  raise Gin.CompileTimeError, message: "for init_timeout, expected Integer type, got: #{inspect(Keyword.fetch!(@__struct_keys__, :init_timeout)[:type])}"
-                Keyword.has_key?(@__struct_keys__, :init_continue) ->
-                  ", {:continue, data.init_continue}}"
-                true -> 
-                  "}"
-              end
-            )
+            cond do
+              for(
+                action <- @__init_actions__,
+                do: Enum.count(Keyword.get_values(@__struct_keys__, action))
+              )
+              |> Enum.sum() > 1 ->
+                raise Gin.CompileTimeError,
+                  message:
+                    "struct may only contain one of the following keys: #{
+                      String.slice(inspect(@__init_actions__), 1..-2)
+                    }"
+
+              Keyword.has_key?(@__struct_keys__, :init_timeout) &&
+                  is_integer(
+                    Keyword.fetch!(@__struct_keys__, :init_timeout)[:default]
+                  ) ->
+                ", data.init_timeout}"
+
+              Keyword.has_key?(@__struct_keys__, :init_timeout) &&
+                  Keyword.fetch!(@__struct_keys__, :init_timeout)[:type] !=
+                    Integer ->
+                raise Gin.CompileTimeError,
+                  message:
+                    "for init_timeout, expected Integer type, got: #{
+                      inspect(
+                        Keyword.fetch!(@__struct_keys__, :init_timeout)[:type]
+                      )
+                    }"
+
+              Keyword.has_key?(@__struct_keys__, :init_continue) ->
+                ", {:continue, data.init_continue}}"
+
+              true ->
+                "}"
+            end
           ]
       end
       |> Enum.join("")
@@ -186,7 +208,8 @@ defmodule Gin.Server do
         build_guard(key, opts[:type], index, Keyword.delete(opts, :type))
 
       true ->
-        raise Gin.CompileTimeError, message: "valid type(s) not defined for key #{inspect(key)}"
+        raise Gin.CompileTimeError,
+          message: "valid type(s) not defined for key #{inspect(key)}"
     end
   end
 

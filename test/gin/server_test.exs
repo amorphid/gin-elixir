@@ -74,8 +74,9 @@ defmodule Gin.ServerTest do
 
   describe "defining a struct w/ multiple init actions" do
     test "raises a compile time error" do
-      pattern =  ~r/struct may only contain one of the following keys/
-      func = fn -> 
+      pattern = ~r/struct may only contain one of the following keys/
+
+      func = fn ->
         Code.eval_string("""
         defmodule MultipleInitActionsRaisesCompileTimeErrorServer do
           use Gin.Server
@@ -91,6 +92,7 @@ defmodule Gin.ServerTest do
         end
         """)
       end
+
       assert_raise Gin.CompileTimeError, pattern, func
     end
   end
@@ -98,6 +100,7 @@ defmodule Gin.ServerTest do
   describe "defining a struct" do
     test "enables use of only module name as supervisor child spec" do
       name = random_name()
+
       Code.eval_string("""
       defmodule StartUsingOnlyModuleNameServer do
         use Gin.Server
@@ -107,29 +110,34 @@ defmodule Gin.ServerTest do
         end
       end
       """)
+
       child_specs = [
         StartUsingOnlyModuleNameServer
       ]
+
       opts = [strategy: :one_for_one]
       assert Process.whereis(name) |> is_nil()
       {:ok, pid} = Supervisor.start_link(child_specs, opts)
       child = Process.whereis(name)
+
       expected_children = [
         {
-          StartUsingOnlyModuleNameServer, 
-          child, 
-          :worker, 
+          StartUsingOnlyModuleNameServer,
+          child,
+          :worker,
           [StartUsingOnlyModuleNameServer]
         }
       ]
+
       assert Supervisor.which_children(pid) == expected_children
     end
   end
 
   describe "defining a struct w/o declaring a type for every key" do
     test "raises a compile time error" do
-      pattern =  ~r/valid type\(s\) not defined for key/
-      func = fn -> 
+      pattern = ~r/valid type\(s\) not defined for key/
+
+      func = fn ->
         Code.eval_string("""
         defmodule NoTypeDeclarationRaisesCompileTimeErrorServer do
           use Gin.Server
@@ -140,14 +148,16 @@ defmodule Gin.ServerTest do
         end
         """)
       end
+
       assert_raise Gin.CompileTimeError, pattern, func
     end
   end
 
   describe "defining a struct w/ non-integer type for key init_timeout" do
     test "raises a compile time error" do
-      pattern =  ~r/for init_timeout, expected Integer type, got:/
-      func = fn -> 
+      pattern = ~r/for init_timeout, expected Integer type, got:/
+
+      func = fn ->
         Code.eval_string("""
         defmodule NonIntegerTypeForInitTimeoutRaisesCompileTimeErrorServer do
           use Gin.Server
@@ -158,6 +168,7 @@ defmodule Gin.ServerTest do
         end
         """)
       end
+
       assert_raise Gin.CompileTimeError, pattern, func
     end
   end
