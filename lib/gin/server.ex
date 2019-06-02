@@ -49,27 +49,52 @@ defmodule Gin.Server do
   defmacro defstruct(opts) do
     quote do
       unquote(opts)
+      unquote(define_struct())
+      unquote(define_start_link())
+      unquote(define_init())
+    end
+  end
 
-      @__struct_keys__
-      |> Enum.map(fn {key, opts} ->
-        {key, Keyword.get(opts, :default, nil)}
-      end)
-      |> case do
-        opts ->
-          Kernel.defstruct(opts)
-      end
+  def build_guard(key, type, index, _opts) do
+    if type in @__native_types__ do
+      %{
+        guard_str: "#{@__native_type_guard_index__[type]}(arg#{index})",
+        key_value_pair_str: "#{inspect(key)} => arg#{index}",
+        type: :built_in
+      }
+    else
+      %{
+        key_value_pair_str:
+          "#{inspect(key)} => %#{inspect(type)}{} = _arg#{index}",
+        type: :struct
+      }
+    end
+  end
 
-      def start_link(otps \\ %{})
+  def build_guards({{key, opts}, index}) do
+    cond do
+      Keyword.has_key?(opts, :types) &&
+          Enum.all?(opts[:types], &is_protocol_compatible_type?/1) ->
+        Enum.map(opts[:types], fn type ->
+          opts
+          |> Keyword.delete(:types)
+          |> case do
+            opts ->
+              build_guard(key, type, index, opts)
+          end
+        end)
 
-      def start_link([]) do
-        start_link()
-      end
+      Keyword.has_key?(opts, :type) && is_protocol_compatible_type?(opts[:type]) ->
+        build_guard(key, opts[:type], index, Keyword.delete(opts, :type))
 
-      def start_link(%{} = opts) do
-        data = struct!(__MODULE__, opts)
-        GenServer.start_link(__MODULE__, data, name: data.name)
-      end
+      true ->
+        raise Gin.CompileTimeError,
+          message: "valid type(s) not defined for key #{inspect(key)}"
+    end
+  end
 
+  def define_init() do
+    quote do
       @__struct_keys__
       |> Enum.with_index()
       |> Enum.map(&build_guards/1)
@@ -175,41 +200,33 @@ defmodule Gin.Server do
     end
   end
 
-  def build_guard(key, type, index, _opts) do
-    if type in @__native_types__ do
-      %{
-        guard_str: "#{@__native_type_guard_index__[type]}(arg#{index})",
-        key_value_pair_str: "#{inspect(key)} => arg#{index}",
-        type: :built_in
-      }
-    else
-      %{
-        key_value_pair_str:
-          "#{inspect(key)} => %#{inspect(type)}{} = _arg#{index}",
-        type: :struct
-      }
+  def define_start_link() do
+    quote do
+      def start_link(opts \\ %{})
+
+      def start_link(opts) when is_list(opts) do
+        opts
+        |> Enum.into(%{})
+        |> start_link()
+      end      
+
+      def start_link(%{} = opts) do
+        data = struct!(__MODULE__, opts)
+        GenServer.start_link(__MODULE__, data, name: data.name)
+      end
     end
   end
 
-  def build_guards({{key, opts}, index}) do
-    cond do
-      Keyword.has_key?(opts, :types) &&
-          Enum.all?(opts[:types], &is_protocol_compatible_type?/1) ->
-        Enum.map(opts[:types], fn type ->
-          opts
-          |> Keyword.delete(:types)
-          |> case do
-            opts ->
-              build_guard(key, type, index, opts)
-          end
-        end)
-
-      Keyword.has_key?(opts, :type) && is_protocol_compatible_type?(opts[:type]) ->
-        build_guard(key, opts[:type], index, Keyword.delete(opts, :type))
-
-      true ->
-        raise Gin.CompileTimeError,
-          message: "valid type(s) not defined for key #{inspect(key)}"
+  def define_struct() do
+    quote do 
+      @__struct_keys__
+      |> Enum.map(fn {key, opts} ->
+        {key, Keyword.get(opts, :default, nil)}
+      end)
+      |> case do
+        opts ->
+          Kernel.defstruct(opts)
+      end
     end
   end
 
