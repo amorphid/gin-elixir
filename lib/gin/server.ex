@@ -1,4 +1,6 @@
 defmodule Gin.Server do
+  alias Gin.CompileTimeError, as: GinCompileTimeError
+
   @__native_types__ [
     Tuple,
     Atom,
@@ -42,7 +44,16 @@ defmodule Gin.Server do
 
   defmacro defkey(key, opts) when is_atom(key) do
     quote do
-      @__struct_keys__ {unquote(key), unquote(opts)}
+      cond do
+        Keyword.has_key?(unquote(opts), :type) && Keyword.has_key?(unquote(opts), :types) -> 
+          raise GinCompileTimeError, message: "For key #{inspect(unquote(key))}, cannot declare both :type & :types"
+
+        Keyword.has_key?(unquote(opts), :type) || Keyword.has_key?(unquote(opts), :types) -> 
+          @__struct_keys__ {unquote(key), unquote(opts)}
+
+        true ->
+          raise GinCompileTimeError, "for key #{inspect(unquote(key))}, no type(s) declared"
+      end
     end
   end
 
@@ -88,7 +99,7 @@ defmodule Gin.Server do
         build_guard(key, opts[:type], index, Keyword.delete(opts, :type))
 
       true ->
-        raise Gin.CompileTimeError,
+        raise GinCompileTimeError,
           message: "valid type(s) not defined for key #{inspect(key)}"
     end
   end
@@ -96,6 +107,7 @@ defmodule Gin.Server do
   def define_init() do
     quote do
       @__struct_keys__
+      |> Enum.sort()
       |> Enum.with_index()
       |> Enum.map(&build_guards/1)
       |> case do
@@ -160,7 +172,7 @@ defmodule Gin.Server do
                 do: Enum.count(Keyword.get_values(@__struct_keys__, action))
               )
               |> Enum.sum() > 1 ->
-                raise Gin.CompileTimeError,
+                raise GinCompileTimeError,
                   message:
                     "struct may only contain one of the following keys: #{
                       String.slice(inspect(@__init_actions__), 1..-2)
@@ -175,7 +187,7 @@ defmodule Gin.Server do
               Keyword.has_key?(@__struct_keys__, :init_timeout) &&
                   Keyword.fetch!(@__struct_keys__, :init_timeout)[:type] !=
                     Integer ->
-                raise Gin.CompileTimeError,
+                raise GinCompileTimeError,
                   message:
                     "for init_timeout, expected Integer type, got: #{
                       inspect(

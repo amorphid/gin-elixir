@@ -135,7 +135,8 @@ defmodule Gin.ServerTest do
 
   describe "defining a struct w/o declaring a type for every key" do
     test "raises a compile time error" do
-      pattern = ~r/valid type\(s\) not defined for key/
+      key = inspect(:my_key)
+      pattern = ~r/for key #{key}, no type\(s\) declared/
 
       func = fn ->
         Code.eval_string("""
@@ -143,7 +144,28 @@ defmodule Gin.ServerTest do
           use Gin.Server
 
           defstruct do
-            defkey(:my_key, [])
+            defkey(#{key}, [])
+          end
+        end
+        """)
+      end
+
+      assert_raise Gin.CompileTimeError, pattern, func
+    end
+  end
+
+  describe "defining a struct with both :type and :types opts" do
+    test "raises a compile time error" do
+      key = inspect(:my_key)
+      pattern = ~r/For key #{key}, cannot declare both :type & :types/
+
+      func = fn ->
+        Code.eval_string("""
+        defmodule TypeAndTypesRaisesCompileTimeErrorServer do
+          use Gin.Server
+
+          defstruct do
+            defkey(#{key}, type: Atom, types: [Atom, BitString])
           end
         end
         """)
