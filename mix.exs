@@ -31,7 +31,9 @@ defmodule Gin.MixProject do
   defp deps() do
     [
       # Doc generator
-      {:ex_doc, ">= 0.0.0", only: :dev}
+      {:ex_doc, ">= 0.0.0", only: :dev},
+      # Incremental data generator
+      {:plus_one_updoot, "~> 0.3", only: [:dev, :test]}
     ]
   end
 
