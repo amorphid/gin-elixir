@@ -4,10 +4,6 @@ defmodule Gin.Error do
       defdelegate raise_compile_error(msg), to: Gin.Error.Compile, as: :raise
 
       defdelegate raise_runtime_error(msg), to: Gin.Error.Runtime, as: :raise
-
-      defdelegate raise_unknown_compile_error(),
-        to: Gin.Error.UnknownCompile,
-        as: :raise
     end
   end
 
@@ -30,10 +26,6 @@ defmodule Gin.Error do
   end
 
   defmodule Runtime do
-    use Base
-  end
-
-  defmodule UnknownCompile do
     use Base
   end
 end
