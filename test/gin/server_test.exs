@@ -413,40 +413,6 @@ defmodule Gin.ServerTest do
   #     assert_raise Gin.Error.Compile, pattern, func
   #   end
 
-  #   test "with both :type and :types opts raises a compile time error", c do
-  #     key = :just_some_key
-  #     pattern = ~r/For key #{inspect(key)}, cannot declare both :type & :types/
-
-  #     func = fn ->
-  #       Code.eval_string("""
-  #       defmodule #{c.module_str} do
-  #         use Gin.Server
-
-  #         defstruct #{key}: %{type: Atom, types: [Atom, BitString]}
-  #       end
-  #       """)
-  #     end
-
-  #     assert_raise Gin.Error.Compile, pattern, func
-  #   end
-
-  #   test "w/o declaring a type for every key raises a compile time error", c do
-  #     key = :just_some_key
-  #     pattern = ~r/for key #{inspect(key)}, no type\(s\) declared/
-
-  #     func = fn ->
-  #       Code.eval_string("""
-  #       defmodule #{c.module} do
-  #         use Gin.Server
-
-  #         defstruct #{key}: %{}
-  #       end
-  #       """)
-  #     end
-
-  #     assert_raise Gin.Error.Compile, pattern, func
-  #   end
-
     test "with no keys" do
       module = PlusOneUpdoot.module!()
 
@@ -459,6 +425,91 @@ defmodule Gin.ServerTest do
       """)
 
       assert struct!(module, [])
+    end
+  end
+
+  describe "Using a Gin.Server" do
+    test "creates boilerplate functions which raises errors when not implemented" do
+      module = PlusOneUpdoot.module!()
+
+      Code.eval_string("""
+        defmodule #{inspect(module)} do
+          use Gin.Server
+        end
+      """) 
+      
+      error = Gin.Error.Runtime
+      message = "not implemented"
+
+      # GenServer functions
+      assert_raise error, message, fn -> module.abcast(nil, nil, nil) end
+      assert_raise error, message, fn -> module.call(nil, nil, nil) end
+      assert_raise error, message, fn -> module.cast(nil, nil) end
+      assert_raise error, message, fn -> module.multi_call(nil, nil, nil, nil) end
+      assert_raise error, message, fn -> module.reply(nil, nil) end
+      assert_raise error, message, fn -> module.start(nil, nil, nil) end
+      assert_raise error, message, fn -> module.start_link(nil, nil, nil) end
+      assert_raise error, message, fn -> module.stop(nil, nil, nil) end
+      assert_raise error, message, fn -> module.whereis(nil) end
+
+      # GenServer callbacks
+      assert_raise error, message, fn -> module.code_change(nil, nil, nil) end
+      assert_raise error, message, fn -> module.format_status(nil, nil) end
+      assert_raise error, message, fn -> module.handle_call(nil, nil, nil) end
+      assert_raise error, message, fn -> module.handle_cast(nil, nil) end
+      assert_raise error, message, fn -> module.handle_continue(nil, nil) end
+      assert_raise error, message, fn -> module.init(nil) end
+      assert_raise error, message, fn -> module.terminate(nil, nil) end
+    end
+
+    test "creates boilerplate functions which can be overridden" do
+      module = PlusOneUpdoot.module!()
+      message = "implemented :)"
+
+      Code.eval_string("""
+        defmodule #{inspect(module)} do
+          use Gin.Server
+
+          def abcast(_, _, _), do: #{inspect(message)}
+          def call(_, _, _), do: #{inspect(message)}
+          def cast(_, _) , do: #{inspect(message)}
+          def multi_call(_, _, _, _), do: #{inspect(message)}
+          def reply(_, _), do: #{inspect(message)}
+          def start(_, _, _), do: #{inspect(message)}
+          def start_link(_, _, _), do: #{inspect(message)}
+          def stop(_, _, _), do: #{inspect(message)}
+          def whereis(_), do: #{inspect(message)}
+
+          def code_change(_, _, _), do: #{inspect(message)}
+          def format_status(_, _), do: #{inspect(message)}
+          def handle_call(_, _, _), do: #{inspect(message)}
+          def handle_cast(_, _), do: #{inspect(message)}
+          def handle_continue(_, _), do: #{inspect(message)}
+          def handle_info(_, _), do: #{inspect(message)}
+          def init(_), do: #{inspect(message)}
+          def terminate(_, _), do: #{inspect(message)}
+        end
+      """) 
+
+      # GenServer functions
+      assert module.abcast(nil, nil, nil) == message
+      assert module.call(nil, nil, nil) == message
+      assert module.cast(nil, nil) == message
+      assert module.multi_call(nil, nil, nil, nil) == message
+      assert module.reply(nil, nil) == message
+      assert module.start(nil, nil, nil) == message
+      assert module.start_link(nil, nil, nil) == message
+      assert module.stop(nil, nil, nil) == message
+      assert module.whereis(nil) == message
+
+      # GenServer callbacks
+      assert module.code_change(nil, nil, nil) == message
+      assert module.format_status(nil, nil) == message
+      assert module.handle_call(nil, nil, nil) == message
+      assert module.handle_cast(nil, nil) == message
+      assert module.handle_continue(nil, nil) == message
+      assert module.init(nil) == message
+      assert module.terminate(nil, nil) == message
     end
   end
 end
