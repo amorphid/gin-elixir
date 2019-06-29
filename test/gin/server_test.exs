@@ -1,14 +1,5 @@
 defmodule Gin.ServerTest do
   use ExUnit.Case, async: true
-
-  # setup do
-  #   %{}
-  #   |> Map.put(:module, PlusOneUpdoot.module!())
-  #   |> case do
-  #     %{module: module} = context ->
-  #       Map.put(context, :module_str, inspect(module))
-  #   end
-  # end
   
   # describe "definng the process name" do
   #   test "with invalid GenServer name raises the expected Erlang error", c do
@@ -195,7 +186,7 @@ defmodule Gin.ServerTest do
   #   end
   # end
   
-  # describe "defining a struct" do
+  describe "defining a struct" do
   #   test "with default values", c do
   #     {key1, default1, type1} = {:a_string, "A String :)", BitString}
   #     {key2, default2, type2} = {:an_atom, :hey_look_an_atom, Atom}
@@ -455,5 +446,19 @@ defmodule Gin.ServerTest do
 
   #     assert_raise Gin.Error.Compile, pattern, func
   #   end
-  # end
+
+    test "with no keys" do
+      module = PlusOneUpdoot.module!()
+
+      Code.eval_string("""
+        defmodule #{inspect(module)} do
+          use Gin.Server
+
+          defstruct []
+        end
+      """)
+
+      assert struct!(module, [])
+    end
+  end
 end
