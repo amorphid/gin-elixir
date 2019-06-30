@@ -1,10 +1,11 @@
 defmodule Gin.Server do
+  alias Gin.Type
+
   defmacro __using__(_) do
     quote do
       use GenServer
       import Kernel, except: [defstruct: 1]
       import unquote(__MODULE__)
-
 
       #######
       # API #
@@ -87,7 +88,51 @@ defmodule Gin.Server do
   defmacro defstruct(opts) do
     quote do
       opts = unquote(opts)
+      :ok = validate_struct_opts!(opts)
       Kernel.defstruct(opts)
     end
+  end
+
+  def validate_struct_opt!(opt) do
+    :ok = validate_struct_opt_type_or_types!(opt)
+    :ok
+  end
+
+  def validate_struct_opt_type_or_types!({key, %{type: _, types: _}}) do
+    msg = "For struct key #{inspect(key)}, both type and types declared"
+    Gin.raise_compile_error(msg)
+  end
+
+  def validate_struct_opt_type_or_types!({key, %{types: types} = key_opts}) when is_list (types) do
+    for type <- types do
+      key_opts
+      |> Map.delete(:types)
+      |> Map.put(:type, type)
+      |> case do
+        key_opts -> 
+          validate_struct_opt_type_or_types!({key, key_opts})
+      end
+    end
+  end
+
+  def validate_struct_opt_type_or_types!({key, %{type: maybe_type}}) do
+    if Type.type?(maybe_type) do
+      true
+    else
+      msg = "For struct key #{inspect(key)}, the type #{inspect(maybe_type)} is not supported"
+      Gin.raise_compile_error(msg)
+    end
+  end
+
+  def validate_struct_opt_type_or_types!({key, %{}}) do
+    msg = "For struct key #{inspect(key)}, no type(s) declared"
+    Gin.raise_compile_error(msg)
+  end
+
+  def validate_struct_opts!([]), do: :ok
+
+  def validate_struct_opts!([h | t]) do
+    :ok = validate_struct_opt!(h)
+    validate_struct_opts!(t)
   end
 end

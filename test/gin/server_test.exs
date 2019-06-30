@@ -355,63 +355,110 @@ defmodule Gin.ServerTest do
   #     assert_raise FunctionClauseError, func
   #   end
     
-  #   test "with no keys creates the struct", c do
-  #     Code.eval_string("""
-  #     defmodule #{c.module_str} do
-  #       use Gin.Server
+    test "w/ key that has with 2 unsupported types raises a compile error for first unsupported type" do
+      module = PlusOneUpdoot.module!()
+      key = :oh_no_two_unsupported_types!
+      unsupported_type0 = PlusOneUpdoot.module!()
+      unsupported_type1 = PlusOneUpdoot.module!()
+      types = [unsupported_type0, unsupported_type1]
+      error = Gin.Error.Compile
+      message = "For struct key #{inspect(key)}, the type #{inspect(unsupported_type0)} is not supported"
 
-  #       defstruct []
-  #     end
-  #     """)
+      func = fn ->
+        Code.eval_string("""
+        defmodule #{inspect(module)} do
+          use Gin.Server
 
-  #     expected = struct!(c.module)
-  #     actual = c.module.__struct__()
-  #     assert expected == actual
-  #   end
+          defstruct #{key}: %{types: #{inspect(types)}}
+        end
+        """)
+      end
 
-  #   test "w/ key that has with 1 supported type & 1 unsupported type raises a compile time error",
-  #        c do
-  #     key = :just_some_key
-  #     supported_type = Atom
-  #     unsupported_type = PlusOneUpdoot.module!()
-  #     types = [supported_type, unsupported_type]
+      assert_raise error, message, func
+    end
 
-  #     pattern =
-  #       ~r/For key #{inspect(key)}, the type #{inspect(unsupported_type)} is not supported/
+    test "w/ key that has with 1 supported type & 1 unsupported type raises a compile error" do
+      module = PlusOneUpdoot.module!()
+      key = :one_good_type_but_oops_da_other_one_busted
+      supported_type = BitString
+      unsupported_type = PlusOneUpdoot.module!()
+      types = [supported_type, unsupported_type]
+      error = Gin.Error.Compile
+      message = "For struct key #{inspect(key)}, the type #{inspect(unsupported_type)} is not supported"
 
-  #     func = fn ->
-  #       Code.eval_string("""
-  #       defmodule #{c.module_str} do
-  #         use Gin.Server
+      func = fn ->
+        Code.eval_string("""
+        defmodule #{inspect(module)} do
+          use Gin.Server
 
-  #         defstruct #{key}: %{types: #{inspect(types)}}
-  #       end
-  #       """)
-  #     end
+          defstruct #{key}: %{types: #{inspect(types)}}
+        end
+        """)
+      end
 
-  #     assert_raise Gin.Error.Compile, pattern, func
-  #   end
+      assert_raise error, message, func
+    end
   
-  #   test "w/ with an unsupported value type raises a compile time error", c do
-  #     key = :just_some_key
-  #     type = PlusOneUpdoot.module!()
+    test "w/ with an unsupported value type raises a compile error" do
+      module = PlusOneUpdoot.module!()
+      key = :me_no_have_supported_type
+      unsupported_type = PlusOneUpdoot.module!()
+      error = Gin.Error.Compile
+      message = "For struct key #{inspect(key)}, the type #{inspect(unsupported_type)} is not supported"
 
-  #     pattern =
-  #       ~r/For key #{inspect(key)}, the type #{inspect(type)} is not supported/
+      func = fn ->
+        Code.eval_string("""
+        defmodule #{inspect(module)} do
+          use Gin.Server
 
-  #     func = fn ->
-  #       Code.eval_string("""
-  #       defmodule #{c.module_str} do
-  #         use Gin.Server
+          defstruct #{key}: %{type: #{inspect(unsupported_type)}}
 
-  #         defstruct #{key}: %{type: #{inspect(type)}}
+        end
+        """)
+      end
 
-  #       end
-  #       """)
-  #     end
+      assert_raise error, message, func
+    end
 
-  #     assert_raise Gin.Error.Compile, pattern, func
-  #   end
+    test "with both :type and :types opts raises a compile time error" do
+      module = PlusOneUpdoot.module!()
+      key = :oops_have_type_and_types
+      type = Atom
+      types = [Atom, BitString]
+      error = Gin.Error.Compile
+      message = "For struct key #{inspect(key)}, both type and types declared"
+
+      func = fn ->
+        Code.eval_string("""
+        defmodule #{inspect(module)} do
+          use Gin.Server
+
+          defstruct #{key}: %{type: #{inspect(type)}, types: #{inspect(types)}}
+        end
+        """)
+      end
+
+      assert_raise error, message, func
+    end
+
+    test "w/o declaring a type for every key raises a compile error" do
+      module = PlusOneUpdoot.module!()
+      key = :me_have_no_type
+      error = Gin.Error.Compile
+      message = "For struct key #{inspect(key)}, no type(s) declared"
+
+      func = fn ->
+        Code.eval_string("""
+        defmodule #{inspect(module)} do
+          use Gin.Server
+
+          defstruct #{key}: %{}
+        end
+        """)
+      end
+
+      assert_raise error, message, func
+    end
 
     test "with no keys" do
       module = PlusOneUpdoot.module!()
@@ -431,15 +478,14 @@ defmodule Gin.ServerTest do
   describe "Using a Gin.Server" do
     test "creates boilerplate functions which raises errors when not implemented" do
       module = PlusOneUpdoot.module!()
+      error = Gin.Error.Runtime
+      message = "not implemented"
 
       Code.eval_string("""
         defmodule #{inspect(module)} do
           use Gin.Server
         end
       """) 
-      
-      error = Gin.Error.Runtime
-      message = "not implemented"
 
       # GenServer functions
       assert_raise error, message, fn -> module.abcast(nil, nil, nil) end
