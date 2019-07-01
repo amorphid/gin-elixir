@@ -6,18 +6,18 @@ end
 
 defimpl Type, for: Atom do
   @built_in_types MapSet.new([
-    Atom, 
-    BitString,
-    Float,
-    Function,
-    Integer,
-    List,
-    Map, 
-    PID,
-    Port,
-    Reference,
-    Tuple
-  ])
+                    Atom,
+                    BitString,
+                    Float,
+                    Function,
+                    Integer,
+                    List,
+                    Map,
+                    PID,
+                    Port,
+                    Reference,
+                    Tuple
+                  ])
 
   def built_in_type?(arg) do
     MapSet.member?(@built_in_types, arg)
@@ -49,7 +49,7 @@ defimpl Type, for: Any do
     false
   end
 end
-   
+
 defimpl Type, for: BitString do
   def type?(_arg) do
     false

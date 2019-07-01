@@ -5,19 +5,19 @@ defmodule Gin.TypeTest do
   describe "&type?/1" do
     test "built in types return true" do
       built_in_types = [
-        Atom, 
+        Atom,
         BitString,
         Float,
         Function,
         Integer,
         List,
-        Map, 
+        Map,
         PID,
         Port,
         Reference,
         Tuple
       ]
-      
+
       for built_in_type <- built_in_types do
         assert Type.type?(built_in_type)
       end
@@ -31,7 +31,7 @@ defmodule Gin.TypeTest do
           defstruct []
         end
       """)
-      
+
       struct_types = [
         module,
         MapSet,
