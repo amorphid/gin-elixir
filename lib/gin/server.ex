@@ -12,6 +12,7 @@ defmodule Gin.Server do
       import unquote(__MODULE__)
 
       :ok = validate_struct_not_defined!()
+      :ok = register_init_action_with_undefined_placeholder()
       @after_compile unquote(__MODULE__)
 
       #######
@@ -92,11 +93,102 @@ defmodule Gin.Server do
     end
   end
 
+  defmacro define_default_init_action() do
+    quote do
+      {:init_action, :undefined} = @__init_action__
+      @__init_action__ {:init_action, {:defined, nil}}
+      :ok
+    end
+  end
+
+  defmacro define_init_return_with_action() do
+    quote do
+      case @__init_action__ do
+        {:init_action, {:defined, nil}} ->
+          def init_return_with_action(%__MODULE__{} = data) do
+            {:ok, data}
+          end
+
+        {:init_action, {:defined, {:continue, _}}} -> 
+          def init_return_with_action(%__MODULE__{} = data) do
+            {:init_action, {:defined, {:continue, value}}} = @__init_action__
+            {:ok, data, {:continue, value}}
+          end
+
+        {:init_action, {:defined, :hibernate}} -> 
+          def init_return_with_action(%__MODULE__{} = data) do
+            {:init_action, {:defined, :hibernate}} = @__init_action__
+            {:ok, data, :hibernate}
+          end
+
+        {:init_action, {:defined, :ignore}} -> 
+          def init_return_with_action(%__MODULE__{} = _data) do
+            {:init_action, {:defined, :ignore}} = @__init_action__
+            :ignore
+          end
+
+        {:init_action, {:defined, {:stop, reason}}} ->
+          def init_return_with_action(%__MODULE__{} = _data) do
+            {:init_action, {:defined, {:stop, reason}}} = @__init_action__
+            {:stop, reason}
+          end
+
+        {:init_action, {:defined, {:timeout_in_milliseconds, _}}} ->
+          def init_return_with_action(%__MODULE__{} = data) do
+            {:init_action, {:defined, {:timeout_in_milliseconds, ms}}} = @__init_action__
+            {:ok, data, ms}
+          end
+      end
+
+      defoverridable init_return_with_action: 1
+      :ok
+    end
+  end
+
   defmacro defstruct(opts) do
     quote do
       opts = unquote(opts)
       :ok = validate_struct_opts!(opts)
+      :ok = define_default_init_action() 
       Kernel.defstruct(opts)
+      :ok = define_init_return_with_action()
+    end
+  end
+
+  defmacro init_action(action) do
+    quote do
+      action = unquote(action)
+
+      case action do
+        [continue: value] -> 
+          {:init_action, {:defined, _}} = @__init_action__
+          @__init_action__ {:init_action, {:defined, {:continue, value}}}
+
+        :hibernate -> 
+          {:init_action, {:defined, _}} = @__init_action__
+          @__init_action__ {:init_action, {:defined, :hibernate}}
+
+        :ignore -> 
+          {:init_action, {:defined, _}} = @__init_action__
+          @__init_action__ {:init_action, {:defined, :ignore}}
+
+        [stop: reason] -> 
+          {:init_action, {:defined, _}} = @__init_action__
+          @__init_action__ {:init_action, {:defined, {:stop, reason}}}
+
+        [timeout_in_milliseconds: ms] when is_integer(ms) -> 
+          {:init_action, {:defined, _}} = @__init_action__
+          @__init_action__ {:init_action, {:defined, {:timeout_in_milliseconds, ms}}}
+      end
+
+      define_init_return_with_action()
+    end
+  end
+
+  defmacro register_init_action_with_undefined_placeholder() do
+    quote do
+      @__init_action__ {:init_action, :undefined}
+      :ok
     end
   end
 

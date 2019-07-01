@@ -1,6 +1,177 @@
 defmodule Gin.ServerTest do
   use ExUnit.Case, async: true
 
+  describe "the init action" do
+    test "is set to nil when defining a struct" do
+      module = PlusOneUpdoot.module!()
+
+      {{_, _, _, {before_struct, after_struct}}, _} = 
+        Code.eval_string("""
+          defmodule #{inspect(module)} do
+            use Gin.Server
+
+            before_struct = Module.get_attribute(__MODULE__, :__init_action__)
+
+            defstruct []
+
+            after_struct = Module.get_attribute(__MODULE__, :__init_action__)
+            
+            {before_struct, after_struct}
+          end
+        """)
+
+      arg = struct!(module, [])
+
+      assert before_struct == {:init_action, :undefined}
+      assert after_struct == {:init_action, {:defined, nil}}
+      # init_return_with_action simply returns {:ok, arg}
+      #   when defined init init_action is nil
+      assert module.init_return_with_action(arg) == {:ok, arg}
+    end
+
+    test "can be a timeout in milliseconds" do
+      module = PlusOneUpdoot.module!()
+      timeout_in_milliseconds = 1234
+
+      {{_, _, _, {before_init_action, after_init_action}}, _} = 
+        Code.eval_string("""
+          defmodule #{inspect(module)} do
+            use Gin.Server
+
+            defstruct []
+
+            before_init_action = Module.get_attribute(__MODULE__, :__init_action__)
+
+            init_action timeout_in_milliseconds: #{inspect(timeout_in_milliseconds)}
+
+            after_init_action = Module.get_attribute(__MODULE__, :__init_action__)
+            
+            {before_init_action, after_init_action}
+          end
+        """)
+
+      arg = struct!(module, [])
+
+      assert before_init_action == {:init_action, {:defined, nil}}
+      assert after_init_action == {:init_action, {:defined, {:timeout_in_milliseconds, 1234}}}
+      assert module.init_return_with_action(arg) == {:ok, arg, 1234}
+    end
+
+    test "can be a continue w/ value" do
+      module = PlusOneUpdoot.module!()
+      value = "I am a value lol :)"
+      init_action = [continue: value]
+
+      {{_, _, _, {before_init_action, after_init_action}}, _} = 
+        Code.eval_string("""
+          defmodule #{inspect(module)} do
+            use Gin.Server
+
+            defstruct []
+
+            before_init_action = Module.get_attribute(__MODULE__, :__init_action__)
+
+            init_action #{inspect(init_action)}
+
+            after_init_action = Module.get_attribute(__MODULE__, :__init_action__)
+            
+            {before_init_action, after_init_action}
+          end
+        """)
+
+      arg = struct!(module, [])
+
+      assert before_init_action == {:init_action, {:defined, nil}}
+      assert after_init_action == {:init_action, {:defined, {:continue, value}}}
+      assert module.init_return_with_action(arg) == {:ok, arg, {:continue, value}}
+    end
+
+    test "can be to hibernate" do
+      module = PlusOneUpdoot.module!()
+      init_action = :hibernate
+
+      {{_, _, _, {before_init_action, after_init_action}}, _} = 
+        Code.eval_string("""
+          defmodule #{inspect(module)} do
+            use Gin.Server
+
+            defstruct []
+
+            before_init_action = Module.get_attribute(__MODULE__, :__init_action__)
+
+            init_action #{inspect(init_action)}
+
+            after_init_action = Module.get_attribute(__MODULE__, :__init_action__)
+            
+            {before_init_action, after_init_action}
+          end
+        """)
+
+      arg = struct!(module, [])
+
+      assert before_init_action == {:init_action, {:defined, nil}}
+      assert after_init_action == {:init_action, {:defined, :hibernate}}
+      assert module.init_return_with_action(arg) == {:ok, arg, :hibernate}
+    end
+
+    test "can be ignore" do
+      module = PlusOneUpdoot.module!()
+      init_action = :ignore
+
+      {{_, _, _, {before_init_action, after_init_action}}, _} = 
+        Code.eval_string("""
+          defmodule #{inspect(module)} do
+            use Gin.Server
+
+            defstruct []
+
+            before_init_action = Module.get_attribute(__MODULE__, :__init_action__)
+
+            init_action #{inspect(init_action)}
+
+            after_init_action = Module.get_attribute(__MODULE__, :__init_action__)
+            
+            {before_init_action, after_init_action}
+          end
+        """)
+
+      arg = struct!(module, [])
+
+      assert before_init_action == {:init_action, {:defined, nil}}
+      assert after_init_action == {:init_action, {:defined, :ignore}}
+      assert module.init_return_with_action(arg) == :ignore
+    end
+
+    test "can be to stop w/ reason" do
+      module = PlusOneUpdoot.module!()
+      reason = "This reason is not terribly impressive, but hey, whatever"
+      init_action = [stop: reason]
+
+      {{_, _, _, {before_init_action, after_init_action}}, _} = 
+        Code.eval_string("""
+          defmodule #{inspect(module)} do
+            use Gin.Server
+
+            defstruct []
+
+            before_init_action = Module.get_attribute(__MODULE__, :__init_action__)
+
+            init_action #{inspect(init_action)}
+
+            after_init_action = Module.get_attribute(__MODULE__, :__init_action__)
+            
+            {before_init_action, after_init_action}
+          end
+        """)
+
+      arg = struct!(module, [])
+
+      assert before_init_action == {:init_action, {:defined, nil}}
+      assert after_init_action == {:init_action, {:defined, {:stop, reason}}}
+      assert module.init_return_with_action(arg) == {:stop, reason}
+    end
+  end
+
   describe "defining a struct" do
     test "w/ key that has with 2 unsupported types raises a compile error for first unsupported type" do
       module = PlusOneUpdoot.module!()
