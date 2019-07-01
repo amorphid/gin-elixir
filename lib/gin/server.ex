@@ -1,11 +1,18 @@
 defmodule Gin.Server do
   alias Gin.Type
 
+  def __after_compile__(env, _) do
+    :ok = validate_struct_defined!(env.module)
+  end
+
   defmacro __using__(_) do
     quote do
       use GenServer
       import Kernel, except: [defstruct: 1]
       import unquote(__MODULE__)
+
+      :ok = validate_struct_not_defined!()
+      @after_compile unquote(__MODULE__)
 
       #######
       # API #
@@ -90,6 +97,26 @@ defmodule Gin.Server do
       opts = unquote(opts)
       :ok = validate_struct_opts!(opts)
       Kernel.defstruct(opts)
+    end
+  end
+
+  defmacro validate_struct_not_defined!() do
+    quote do
+      if Type.struct_type?(__MODULE__) == false do
+        :ok
+      else
+        msg = "For module #{inspect(__MODULE__)}, struct defined before 'use Gin.Server'"
+        Gin.raise_compile_error(msg)
+      end
+    end
+  end
+
+  def validate_struct_defined!(module) do
+    if Type.struct_type?(module) do
+      :ok
+    else
+      msg = "For module #{inspect(module)}, no struct defined"
+      Gin.raise_compile_error(msg)
     end
   end
 

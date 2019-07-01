@@ -65,7 +65,6 @@ defmodule Gin.ServerTest do
           use Gin.Server
 
           defstruct #{key}: %{type: #{inspect(unsupported_type)}}
-
         end
         """)
       end
@@ -137,6 +136,8 @@ defmodule Gin.ServerTest do
       Code.eval_string("""
         defmodule #{inspect(module)} do
           use Gin.Server
+
+          defstruct []
         end
       """)
 
@@ -172,6 +173,8 @@ defmodule Gin.ServerTest do
       Code.eval_string("""
         defmodule #{inspect(module)} do
           use Gin.Server
+
+          defstruct []
 
           def abcast(_, _, _), do: #{inspect(message)}
           def call(_, _, _), do: #{inspect(message)}
@@ -213,6 +216,42 @@ defmodule Gin.ServerTest do
       assert module.handle_continue(nil, nil) == message
       assert module.init(nil) == message
       assert module.terminate(nil, nil) == message
+    end
+  end
+
+  describe "using a Gin.Server" do
+    test "raises a compile error if a struct defined before using Gin.Server" do
+      module = PlusOneUpdoot.module!()
+      error = Gin.Error.Compile
+      message = "For module #{inspect(module)}, struct defined before 'use Gin.Server'"
+
+      func = fn ->
+        Code.eval_string("""
+          defmodule #{inspect(module)} do
+            defstruct []
+
+            use Gin.Server
+          end
+        """)
+      end
+
+      assert_raise error, message, func
+    end
+
+    test "raises a compile error if a struct has not been defined" do
+      module = PlusOneUpdoot.module!()
+      error = Gin.Error.Compile
+      message = "For module #{inspect(module)}, no struct defined"
+
+      func = fn ->
+        Code.eval_string("""
+          defmodule #{inspect(module)} do
+            use Gin.Server
+          end
+        """)
+      end
+
+      assert_raise error, message, func
     end
   end
 end
