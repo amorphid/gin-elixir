@@ -149,6 +149,8 @@ defmodule Gin.Server do
     quote do
       opts = unquote(opts)
       :ok = validate_struct_opts!(opts)
+      :ok = register_struct_opts!(opts)
+      :ok = define_validate_data!()
       :ok = define_default_init_action() 
       Kernel.defstruct(opts)
       :ok = define_init_return_with_action()
@@ -189,6 +191,13 @@ defmodule Gin.Server do
     quote do
       @__init_action__ {:init_action, :undefined}
       :ok
+    end
+  end
+
+  def register_struct_opts(opts) do
+    quote do
+      opts = unquote(opts)
+      @__struct_opts__ opts
     end
   end
 
